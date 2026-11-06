@@ -2,7 +2,7 @@
 
 @section('content')
     <style>
-        #drop { border: 1.5px dashed #4d4239; border-radius: 12px; padding: 48px 16px; text-align: center; cursor: pointer; color: var(--muted); transition: background .15s, border-color .15s; }
+        #drop { border: 1.5px dashed var(--line-strong); border-radius: 12px; padding: 48px 16px; text-align: center; cursor: pointer; color: var(--muted); transition: background .15s, border-color .15s; }
         #drop:hover { border-color: var(--muted); }
         #drop.over { background: var(--raised); border-color: var(--accent); color: var(--text); }
         #drop * { pointer-events: none; }
