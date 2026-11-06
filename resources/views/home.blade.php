@@ -2,11 +2,14 @@
 
 @section('content')
     <style>
-        #drop { border: 1.5px dashed var(--line-strong); border-radius: 12px; padding: 48px 16px; text-align: center; cursor: pointer; color: var(--muted); transition: background .15s, border-color .15s; }
-        #drop:hover { border-color: var(--muted); }
-        #drop.over { background: var(--raised); border-color: var(--accent); color: var(--text); }
+        #drop { border: 2px dashed #6b4a12; border-radius: 10px; padding: 40px 16px; text-align: center; cursor: pointer; color: var(--muted); background: var(--well); transition: background .15s, border-color .15s, box-shadow .15s; }
+        #drop:hover { border-color: var(--amber); }
+        #drop.over { border-color: var(--amber); background: rgba(255, 182, 39, .07); box-shadow: 0 0 24px rgba(255, 182, 39, .25), inset 0 0 24px rgba(255, 182, 39, .08); }
         #drop * { pointer-events: none; }
-        #drop strong { display: block; font-size: 18px; color: var(--text); margin-bottom: 4px; }
+        #drop strong { display: block; margin: 14px 0 6px; font: 900 clamp(15px, 3.4vw, 20px) var(--display); letter-spacing: 2px; text-transform: uppercase; color: var(--amber); text-shadow: 0 0 12px rgba(255, 182, 39, .5); }
+        #drop svg { color: #fffbe0; filter: drop-shadow(0 0 6px #ffd23f); }
+        #drop.over svg, body.warp #drop svg { animation: spin .6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .strip { display: flex; flex-wrap: wrap; line-height: 0; }
         .strip img { height: 170px; max-width: 100%; object-fit: cover; display: block; }
         .item { position: relative; }
@@ -15,19 +18,24 @@
         .item a { display: block; }
         #result-section { display: none; }
         .row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-        #progress { margin-top: 10px; }
+        #progress { margin-top: 10px; min-height: 1.4em; font: 15px var(--mono); color: var(--amber); text-shadow: 0 0 6px rgba(255, 182, 39, .4); }
+        .strip img { border: 0; }
+        #count { font-family: var(--mono); font-size: 14px; }
     </style>
 
-    <div class="card">
+    <div class="card c-red">
         <div id="drop">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+                <path d="M12 13v8M12 13 5 5M12 13l7-8"/><circle cx="12" cy="13" r="2.6" fill="currentColor" stroke="none"/>
+            </svg>
             <strong>{{ __('Glisse tes images ici') }}</strong>
             {{ __('ou clique pour choisir, ou colle avec Ctrl+V') }}
         </div>
         <input type="file" id="file" accept="image/*" multiple hidden>
-        <div id="progress" class="muted"></div>
+        <div id="progress"></div>
     </div>
 
-    <div class="card" id="result-section">
+    <div class="card c-orange" id="result-section">
         <h2>{{ __('Résultat') }}</h2>
         <div class="strip" id="result"></div>
         <div class="row" style="margin-top: 14px;">
@@ -57,7 +65,7 @@
         @endif
     </div>
 
-    <div class="card">
+    <div class="card c-pink">
         <h2>API</h2>
         @if (session('token'))
             <p>{{ __('Ton token (il ne sera plus affiché) :') }} <code>{{ session('token') }}</code></p>
@@ -102,9 +110,11 @@
 
         async function upload(files) {
             files = files.filter(f => f.type.startsWith('image/'));
+            if (!files.length) return;
             let done = 0, failed = 0;
+            document.body.classList.add('warp');
             for (const file of files) {
-                progress.textContent = `${t.sending} ${done + failed + 1}/${files.length}...`;
+                progress.textContent = `> ${t.sending} ${done + failed + 1}/${files.length}...`;
                 const body = new FormData();
                 body.append('images[]', file);
                 try {
@@ -122,7 +132,8 @@
                     console.error(file.name, e);
                 }
             }
-            progress.textContent = `${done} ${t.sent}` + (failed ? `, ${failed} ${t.failed}` : '');
+            progress.textContent = `> ${done} ${t.sent}` + (failed ? `, ${failed} ${t.failed}` : '');
+            document.body.classList.remove('warp');
         }
 
         function add(image) {

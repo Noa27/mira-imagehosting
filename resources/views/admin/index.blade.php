@@ -3,15 +3,18 @@
 @section('content')
     <style>
         table { width: 100%; border-collapse: collapse; }
-        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-        th { color: var(--muted); font-weight: 500; font-size: 13px; }
+        th, td { text-align: left; padding: 11px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+        th { color: var(--muted); font: 700 10px var(--display); letter-spacing: 2px; text-transform: uppercase; }
+        td.name { font: 16px var(--mono); }
+        .badge { margin-left: 6px; padding: 1px 6px; border: 1px solid var(--pink); border-radius: 4px; color: var(--pink); font: 700 9px var(--display); letter-spacing: 1.5px; vertical-align: middle; }
         .inline { display: flex; gap: 6px; align-items: center; }
-        .inline input { width: 150px; padding: 5px 8px; }
+        .inline input { width: 150px; padding: 6px 9px; font-size: 14px; }
+        label { display: flex; align-items: center; gap: 6px; font: 700 11px var(--display); letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
         .grid { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 10px; align-items: center; }
         @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } .scroll { overflow-x: auto; } }
     </style>
 
-    <form class="card" method="post" action="{{ route('admin.store') }}">
+    <form class="card c-red" method="post" action="{{ route('admin.store') }}">
         @csrf
         <h2>{{ __('Nouveau compte') }}</h2>
         <div class="grid">
@@ -25,15 +28,15 @@
         @endif
     </form>
 
-    <div class="card scroll">
+    <div class="card c-orange scroll">
         <h2>{{ __('Comptes') }}</h2>
         <table>
             <tr><th>{{ __('Nom') }}</th><th>Images</th><th>{{ __('Taille') }}</th><th>{{ __('Mot de passe') }}</th><th></th></tr>
             @foreach ($users as $user)
                 <tr>
-                    <td>{{ $user->name }} @if ($user->is_admin)<span class="muted">(admin)</span>@endif</td>
-                    <td>{{ $user->images_count }}</td>
-                    <td style="white-space: nowrap;">{{ number_format(($user->images_sum_size ?? 0) / 1048576, 1, __(','), ' ') }} {{ __('Mo') }}</td>
+                    <td class="name">{{ $user->name }}@if ($user->is_admin)<span class="badge">ADMIN</span>@endif</td>
+                    <td class="digits">{{ $user->images_count }}</td>
+                    <td class="digits" style="white-space: nowrap;">{{ number_format(($user->images_sum_size ?? 0) / 1048576, 1, __(','), ' ') }} {{ __('Mo') }}</td>
                     <td>
                         <form class="inline" method="post" action="{{ route('admin.password', $user) }}">
                             @csrf @method('put')
