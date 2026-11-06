@@ -27,7 +27,7 @@ class ImageController extends Controller
 
         Validator::make(['images' => $files], [
             'images' => 'required|array',
-            'images.*' => WebImageController::RULES,
+            'images.*' => WebImageController::rules(),
         ])->validate();
 
         $images = collect($files)->map(fn ($file) => Image::store($request->user(), $file));

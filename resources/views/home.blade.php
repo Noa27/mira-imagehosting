@@ -21,6 +21,10 @@
         #progress { margin-top: 10px; min-height: 1.4em; font: 15px var(--mono); color: var(--amber); text-shadow: 0 0 6px rgba(255, 182, 39, .4); }
         .strip img { border: 0; }
         #count { font-family: var(--mono); font-size: 14px; }
+        .limits { display: block; margin-top: 10px; font: 12px var(--mono); letter-spacing: 1px; color: #7d7789; }
+        #errors { margin: 6px 0 0; padding: 0; list-style: none; font: 13px var(--mono); color: var(--red); }
+        #errors li { padding: 2px 0; word-break: break-all; }
+        #errors b { color: var(--text); font-weight: normal; }
     </style>
 
     <div class="card c-red">
@@ -30,9 +34,11 @@
             </svg>
             <strong>{{ __('Glisse tes images ici') }}</strong>
             {{ __('ou clique pour choisir, ou colle avec Ctrl+V') }}
+            <span class="limits">{{ __('Max :size Mo par image', ['size' => round($maxUpload / 1048576, 1)]) }} · {{ strtoupper(implode(' ', array_diff(App\Http\Controllers\ImageController::EXTENSIONS, ['jpeg']))) }}</span>
         </div>
         <input type="file" id="file" accept="image/*" multiple hidden>
         <div id="progress"></div>
+        <ul id="errors"></ul>
     </div>
 
     <div class="card c-orange" id="result-section">
@@ -95,7 +101,42 @@
             'sent' => __('envoyée(s)'),
             'failed' => __('en échec'),
             'copied' => __('Copié'),
+            'tooBig' => __('trop lourde (:size Mo, max :max Mo)'),
+            'tooBigServer' => __('trop lourde pour le serveur'),
+            'format' => __('format non supporté (:ext)'),
+            'expired' => __('session expirée, recharge la page'),
+            'network' => __('connexion perdue'),
         ]);
+        const maxBytes = {{ $maxUpload }};
+        const allowed = @js(App\Http\Controllers\ImageController::EXTENSIONS);
+        const errors = document.getElementById('errors');
+        const mb = bytes => (bytes / 1048576).toFixed(1);
+
+        function fail(file, message) {
+            const li = document.createElement('li');
+            const name = document.createElement('b');
+            name.textContent = file.name || 'image';
+            li.append(name, ' : ' + message);
+            errors.append(li);
+        }
+
+        function check(file) {
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            const sub = (file.type.split('/')[1] || '').toLowerCase();
+            if (!allowed.includes(ext) && !allowed.includes(sub)) return t.format.replace(':ext', sub || ext || '?');
+            if (file.size > maxBytes) return t.tooBig.replace(':size', mb(file.size)).replace(':max', mb(maxBytes));
+        }
+
+        async function reason(res) {
+            if (res.status === 419) return t.expired;
+            if (res.status === 413) return t.tooBigServer;
+            try {
+                const data = await res.json();
+                return data.errors ? Object.values(data.errors)[0][0] : (data.message || `HTTP ${res.status}`);
+            } catch {
+                return `HTTP ${res.status}`;
+            }
+        }
 
         drop.addEventListener('click', () => input.click());
         input.addEventListener('change', () => { upload([...input.files]); input.value = ''; });
@@ -104,17 +145,23 @@
         drop.addEventListener('drop', ev => upload([...ev.dataTransfer.files]));
         ['dragover', 'drop'].forEach(e => document.addEventListener(e, ev => ev.preventDefault()));
         document.addEventListener('paste', ev => {
-            const files = [...ev.clipboardData.files].filter(f => f.type.startsWith('image/'));
+            const files = [...ev.clipboardData.files];
             if (files.length) upload(files);
         });
 
         async function upload(files) {
-            files = files.filter(f => f.type.startsWith('image/'));
             if (!files.length) return;
             let done = 0, failed = 0;
+            errors.replaceChildren();
             document.body.classList.add('warp');
             for (const file of files) {
                 progress.textContent = `> ${t.sending} ${done + failed + 1}/${files.length}...`;
+                const problem = check(file);
+                if (problem) {
+                    failed++;
+                    fail(file, problem);
+                    continue;
+                }
                 const body = new FormData();
                 body.append('images[]', file);
                 try {
@@ -123,13 +170,17 @@
                         headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
                         body,
                     });
-                    if (!res.ok) throw new Error((await res.json()).message || res.status);
+                    if (!res.ok) {
+                        failed++;
+                        fail(file, await reason(res));
+                        continue;
+                    }
                     const data = await res.json();
                     data.images.forEach(add);
                     done++;
-                } catch (e) {
+                } catch {
                     failed++;
-                    console.error(file.name, e);
+                    fail(file, t.network);
                 }
             }
             progress.textContent = `> ${done} ${t.sent}` + (failed ? `, ${failed} ${t.failed}` : '');
